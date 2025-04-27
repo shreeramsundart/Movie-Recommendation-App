@@ -181,7 +181,7 @@ export async function POST(request) {
             videos: detailsResponse.data.videos?.results || [],
             similar: detailsResponse.data.similar?.results || [],
             providers,
-            original_language: movie.original_language || 'en',
+            original_language: movie.original_language || 'Unknown',
             status: detailsResponse.data.status || 'Unknown',
             tagline: detailsResponse.data.tagline || '',
           };
