@@ -224,7 +224,7 @@ export async function POST(request) {
             videos: [],
             similar: [],
             providers: null,
-            original_language: movie.original_language || 'en',
+            original_language: movie.original_language || 'Unknown',
             status: 'Unknown',
             tagline: '',
           };
