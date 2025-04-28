@@ -45,29 +45,39 @@ export async function POST(request) {
     console.log('Calling Gemini API');
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
-    const prompt = `Provide 100+ movie recommendations that strictly match these criteria:
+    const prompt = `Provide 50+ movie recommendations that strictly match these criteria:
     - Genre: ${genre}
     - Language: ${language}
-    - Additional preferences: ${additionalDetails || 'none'}
+    - hint to guess about that movie is : ${additionalDetails || 'none'}
 
-    Return ONLY a JSON array of movie titles in this exact format:
+    strictly return ONLY a JSON array of movie titles in this exact format with no reason other than the json, if no movies are found I don't need any reason just return a movie that is similar to the genre and language I provided:
     ["Movie Title 1", "Movie Title 2", ..., "Movie Title 20"]`;
 
     const result = await model.generateContent(prompt);
+    console.log('Gemini API response:', result);
     const textResponse = result.response.text().trim();
 
     let movieTitles = [];
     try {
+      // Check if the response contains a JSON array
       const cleanedResponse = textResponse.replace(/```json|```/g, '').trim();
-      movieTitles = JSON.parse(cleanedResponse);
-      if (!Array.isArray(movieTitles) || movieTitles.length === 0) {
-        throw new Error('Invalid response format - expected array of movie titles');
+
+      // Handle cases where Gemini includes a message alongside the movie list
+      const match = cleanedResponse.match(/\[.*\]/);
+      if (match) {
+        movieTitles = JSON.parse(match[0]);
+        if (!Array.isArray(movieTitles) || movieTitles.length === 0) {
+          throw new Error('Invalid response format - expected array of movie titles');
+        }
+      } else {
+        // If no valid array found, handle the error message from Gemini
+        throw new Error('No valid JSON array found in Gemini response');
       }
     } catch (e) {
       console.error('Failed to parse Gemini response:', textResponse);
       return NextResponse.json({
         error: 'Failed to parse movie recommendations',
-        details: 'Gemini returned an invalid format',
+        details: e.message,
         response: textResponse
       }, { status: 500 });
     }
@@ -247,17 +257,15 @@ async function saveMovieList(userId, listName, movies, searchCriteria) {
   try {
     const { data, error } = await supabase
       .from('movie_lists')
-      .insert([
-        {
-          user_id: userId,
-          name: listName,
-          genre: searchCriteria.genre,
-          language: searchCriteria.language,
-          additional_details: searchCriteria.additionalDetails,
-          movies: movies,
-          created_at: new Date().toISOString()
-        }
-      ])
+      .insert([{
+        user_id: userId,
+        name: listName,
+        genre: searchCriteria.genre,
+        language: searchCriteria.language,
+        additional_details: searchCriteria.additionalDetails,
+        movies: movies,
+        created_at: new Date().toISOString()
+      }])
       .select();
 
     if (error) throw error;
